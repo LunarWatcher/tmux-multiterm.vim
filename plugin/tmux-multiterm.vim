@@ -29,22 +29,29 @@ fun! TmuxTargetExecuteCommand(pane = -1, session = -1, ...)
         let splice = split(a:1, ' ')
     endif
 
-    if !empty(g:tmux_multiterm_session) || a:session != -1
-
-        let sess = '-t ' 
-        if a:session != -1
-            let sess .= a:session
-        else
-            let sess .= g:tmux_multiterm_session
-        endif
-
-        if a:pane != -1
-            let sess .= '.' . a:pane
-        endif
-        if (sess != '-t ')
-            let splice = insert(l:splice, l:sess, 1)
-        endif
+    let sess = '-t ' 
+    if a:session != -1
+        let sess .= a:session
+    elseif !empty (g:tmux_multiterm_session)
+        let sess .= g:tmux_multiterm_session
     endif
+
+    if a:pane != -1
+        " First of all, we want to isolate the default buffer, if one is
+        " provided. This is useless if we've been provided a brand new pane to
+        " store shit in.
+        let split = split(sess, '\.')
+        if (len(split) > 1)
+            " Get rid of the default buffer
+            let sess = split[0]
+        endif
+        let sess .= '.' . a:pane
+    endif
+
+    if (sess != '-t ')
+        let splice = insert(l:splice, l:sess, 1)
+    endif
+
 
     call TmuxExecuteCommand(join(l:splice, ' '))
 endfun
