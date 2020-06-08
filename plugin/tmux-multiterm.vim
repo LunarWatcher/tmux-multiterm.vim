@@ -29,7 +29,7 @@ fun! TmuxTargetExecuteCommand(pane = -1, session = -1, ...)
         let splice = split(a:1, ' ')
     endif
 
-    if !empty(g:tmux_multiterm_session)
+    if !empty(g:tmux_multiterm_session) || a:session != -1
 
         let sess = '-t ' 
         if a:session != -1
