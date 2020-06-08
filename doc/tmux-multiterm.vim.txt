@@ -1,0 +1,187 @@
+*tmux-multiterm-vim.txt* Integration with Tmux directly from Vim
+ _                                             _ _   _ _                      ~
+| |_ _ __ ___  _   ___  __     _ __ ___  _   _| | |_(_) |_ ___ _ __ _ __ ___  ~
+| __| '_ ` _ \| | | \ \/ /____| '_ ` _ \| | | | | __| | __/ _ \ '__| '_ ` _ \ ~
+| |_| | | | | | |_| |>  <_____| | | | | | |_| | | |_| | ||  __/ |  | | | | | |~
+ \__|_| |_| |_|\__,_/_/\_\    |_| |_| |_|\__,_|_|\__|_|\__\___|_|  |_| |_| |_|~
+
+==============================================================================
+Table of contents                                       *tmux-multiterm-content*
+
+    1. Intro ..................... |tmux-multiterm-intro|
+        Tmux socket arch ......... |tmux-multiterm-socketarch|
+    2. Options ................... |tmux-multiterm-options|
+    3. Functions ................. |tmux-multiterm-functions|
+    4. Commands and mappings ..... |tmux-multiterm-maps-commands|
+    5. Contributing .............. |tmux-multiterm-contributing|
+    6. License ................... |tmux-multiterm-license|
+
+==============================================================================
+1. Introduction                                           *tmux-multiterm-intro*
+
+There are already plugins out there dealing with tmux in various ways, but
+none of them ended up working for me. So I rolled my own.
+
+This plugin aims to set up systems to deal with tmux in
+different terminals or programs than Vim/gVim/neovim/<insert your favorite
+fork here>.
+
+Additionally, this plugin is meant to deal with cases where vim isn't started
+in the same terminal as the terminal containing tmux.
+------------------------------------------------------------------------------
+Tmux socket arch                                     *tmux-multiterm-socketarch*
+
+This first part isn't as much documentation about the plugin as it is about
+tmux. This is here for those of you who don't understand these specific
+aspects of tmux. (Full disclosure, I didn't either before I got started on
+the plugin).
+
+Unless otherwise specified, on Linux, the default tmux socket is
+`/tmp/tmux-1000/default`. It's possible to retrieve from the $TMUX environment
+variable as well. `tmux -S /socket/path new-session -t sessionName` will start
+a new session with a different socket. Multiple sessions can also reside in a
+single socket.
+
+Some picky details: `tmux send-keys -t sessionName` implies the
+first buffer available in a session named `sessionName`. `-t sessionName.0`
+implies the 0th terminal buffer in tmux. `0.0` implies the 0th buffer in the
+0th window. In addition to names, the tmux sessions also have IDs. The IDs
+follow the zero-indexed array standard. Additionally, if you name a buffer, it
+will still have an ID associated with it. if someSession is the first session,
+both `someSession.0` and `0.0` refers to the same buffer in the same session.
+
+Finally, not specifying the socket, buffer, or session implies the _last used_
+session and buffer. This is a significantly more dynamic option, and might not
+work depending on how you use tmux. Most of the time, you want to specify a
+pane and a session. Just specifying `-t .0` implies the first buffer in the
+last used window. Again, this is all good if you only have one session open,
+but if you have several, and several buffers, be explicit when you set stuff.
+
+Now, this is the part that more talks about the plugin. More specifically, how
+you can use it for your own purposes in tmux interop.
+==============================================================================
+2. Plugin options                                       *tmux-multiterm-options*
+
+Note  that due to the way this plugin is designed, these variables only guide
+the defaults, unless otherwise noted. This means that if you supply options
+where you basically say "hey, figure this out" to the plugin, this is what it
+uses.
+
+------------------------------------------------------------------------------
+                                                     *g:tmux_multiterm_session*
+The `g:tmux_multiterm_session` contains info about what session and what
+buffer is targeted. Note that not being explicit causes tmux itself to make
+assumptions that you may or may not agree with.
+
+If this isn't set, it'll send the command to the last used buffer in the last
+used session. If it's set to `.x`, where x is a number, it'll get sent to a
+pane x in the last used window. If it's set to `x`, where x is a number, or
+`sessionName`, it'll send the command to the last used buffer in a specific
+session.
+
+For more details, see |tmux-multiterm-socketarch|
+
+------------------------------------------------------------------------------
+                                                      *g:tmux_multiterm_socket*
+This option defines which socket to use. If you use a custom socket, this HAS
+to be set. If it isn't set, it uses the default socket location. this does not
+have to be set manually if you start vim or gvim from TMUX, or otherwise have
+the environment variable `$TMUX` set.
+
+==============================================================================
+3. Functions                                          *tmux-multiterm-functions*
+
+This plugin doesn't export too many options, commands, and keybinds, but it
+does expose several functions. 
+
+------------------------------------------------------------------------------
+                                                       *tmux-multiterm-funcargs*
+Several of the functions share arguments, and they have the exact same meaning.
+Unless otherwise specified, it's safe to assume:
+
+    pane       -1 by default (lets the plugin determine; falls back to
+              |g:tmux_multiterm_session|).
+    session    -1 by default (lets the plugin determine; falls back to
+              |g:tmux_multiterm_session|).
+    ...       (additional args, iDunno how to denote those in docs)
+              Contains the command. Can be a single string, or an array.
+
+------------------------------------------------------------------------------
+                                                                *TmuxSendKeys()*
+`TmuxSendKeys(pane, session, ...)` (see |tmux-multiterm-funcargs| for argument
+descriptions) uses `tmux send-keys` under the hood to send commands to tmux.
+This function is also used by TmuxSendToRunner.
+
+------------------------------------------------------------------------------
+                                                     *TmuxTargetExecuteComand()*
+`TmuxTargetExecuteCommand(pane, session, ...)` (see |tmux-multiterm-funcargs|
+for argument descriptions) sends a tmux command to a specific session and/or
+pane. It automatically deals with sockets, but assumes all tmux sessions are
+hosted on the same socket. (This may change in the future when I get more
+comfortable with vimscript). 
+
+This accepts any command, unlike |TmuxSendKeys()|, which only uses a specific
+command. In fact, `TmuxSendKeys()` uses this funciton under the hood.
+
+------------------------------------------------------------------------------
+                                                          *TmuxExecuteCommand()*
+`TmuxExecuteCommand(...)` (note: DO NOT confuse with |TmuxTargetExecuteCommand|)
+executes a tmux command without specifying a pane and/or session in which to
+run said command. This is the function you want if you're looking for commands
+like `list-session`, where specifying a pane isn't required or allowed.
+
+This function can also be used if you don't care where a command (i.e. through
+`tmux send-keys`) is piped.
+
+==============================================================================
+4. Commands and mappings                          |tmux-multiterm-maps-commands|
+
+------------------------------------------------------------------------------
+                                                       *tmux-multiterm-mappings*
+Per now, there are no mappings out of the box. This may change in a future
+version.
+
+------------------------------------------------------------------------------
+                                                       *tmux-multiterm-commands*
+Out of the box, there's a couple commands set up for your convenience.
+
+------------------------------------------------------------------------------
+                                                                       *SetTerm*
+`:SetTerm mySession.1234` is equivalent to 
+`let g:tmux_multiterm_session = "mySession.1234` (|g:tmux_multiterm_session|).
+
+This command is mainly useful if you vary the names, or decided to change it
+at runtime. This command doesn't directly have any use if you set 
+|g:tmux_multiterm_session| in your .vimrc.
+------------------------------------------------------------------------------
+                                                                     *SetBuffer*
+`:SetBuffer 1234` is a convenience command. It's equivalent to 
+`let g:tmux_multiterm_session .= '.1234'`.
+
+------------------------------------------------------------------------------
+                                                              *TmuxListSessions*
+this function calls `tmux list-sessions` and shows you the output at the
+bottom of Vim.
+
+------------------------------------------------------------------------------
+                                                              *TmuxSendToRunner*
+`:TmuxSendToRunner <command>` sends a specified command to tmux through
+`send-keys`. I highly recommend using mappings that call |TmuxSendKeys()|
+directly instead of using this mapping.
+
+==============================================================================
+5. Contributing                                    *tmux-multiterm-contributing*
+
+Contributions to the plugin on GitHub are welcome:
+https://github.com/lunarwatcher/tmux-multiterm.vim/
+
+Improvements to the interface are also welcome.
+
+==============================================================================
+6. License                                              *tmux-multiterm-license*
+
+This plugin is licensed under the MIT license:
+https://github.com/LunarWatcher/tmux-multiterm.vim/blob/master/LICENSE
+
+
+vim:tw=78:ts=8:ft=help:norl:
