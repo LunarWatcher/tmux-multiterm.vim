@@ -106,6 +106,8 @@ have compiling in pane 0, and running in pane 1 (vertical split). In my
     endfun
 
     " I use SCons for building and testing
+    " Here, notice the third argument: this is the tmux pane it gets channeled
+    " into. Building, in this case, goes to pane 0, and testing goes to pane 1
     command! -nargs=* SCons call RunBuild('scons', 0, 0, '-j 6', <f-args>)
     command! -nargs=* SConsTest call RunBuild('scons', 0, 1, 'test -j 6', <f-args>)
 
@@ -115,6 +117,9 @@ have compiling in pane 0, and running in pane 1 (vertical split). In my
 
     " Currently, while developing a command line app, this little command
     " right here lets me type in Vim and see everything happen in tmux
+    " This channels the input  (i.e. `:Run task add Some task` - shameless
+    " plug for https://github.com/LunarWatcher/Taskranger) as a command
+    " in pane 1.
     command! -nargs=* Run call RunBinary(1, -1, <f-args>)
 
     " This is a fallback command for cases where the autocmd hasn't activated.
