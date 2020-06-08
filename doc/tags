@@ -17,4 +17,5 @@ tmux-multiterm-license	tmux-multiterm.vim.txt	/*tmux-multiterm-license*
 tmux-multiterm-mappings	tmux-multiterm.vim.txt	/*tmux-multiterm-mappings*
 tmux-multiterm-options	tmux-multiterm.vim.txt	/*tmux-multiterm-options*
 tmux-multiterm-socketarch	tmux-multiterm.vim.txt	/*tmux-multiterm-socketarch*
+tmux-multiterm-usage	tmux-multiterm.vim.txt	/*tmux-multiterm-usage*
 tmux-multiterm-vim.txt	tmux-multiterm.vim.txt	/*tmux-multiterm-vim.txt*

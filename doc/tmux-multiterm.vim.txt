@@ -10,6 +10,7 @@ Table of contents                                       *tmux-multiterm-content*
 
     1. Intro ..................... |tmux-multiterm-intro|
         Tmux socket arch ......... |tmux-multiterm-socketarch|
+        Usage examples ........... |tmux-multiterm-usage|
     2. Options ................... |tmux-multiterm-options|
     3. Functions ................. |tmux-multiterm-functions|
     4. Commands and mappings ..... |tmux-multiterm-maps-commands|
@@ -59,6 +60,83 @@ but if you have several, and several buffers, be explicit when you set stuff.
 
 Now, this is the part that more talks about the plugin. More specifically, how
 you can use it for your own purposes in tmux interop.
+------------------------------------------------------------------------------
+How do I use it though?                                   *tmux-multiterm-usage*
+
+You might be wondering how this plugin can be used.
+
+At the time of writing, I personally use tmux in two panes: one for the
+compiling, and one for running unit tests and manual tests of the program. I
+have compiling in pane 0, and running in pane 1 (vertical split). In my
+.vimrc, I have this:
+
+>
+    " This augroup can be bigger, but this can be used to control the output
+    " session based on the current (or last triggering filetype) used.
+    " Because I need some standards, I name all my C++-related sessions
+    " cpp. You of course don't have to do this, but if you rely on names,
+    " make sure you're consistent
+    augroup Multiterm
+        autocmd FileType cpp let g:tmux_multiterm_session = "cpp.0"
+    augroup END
+
+    fun! RunBuild(buildSys, allowEmpty, pane, ...)
+        " buildSys: the command to use
+        " allowEmpty: whether to allow the output to be inside vim. This will
+        " block.
+
+        " Runs a build command for a provided buildSys, channels into a provided
+        " pipe, with optional args
+        let args = ""
+        if a:0 != 0
+            let args = join(a:000)
+        endif
+
+        let base = a:buildSys . ' ' . args
+        call TmuxSendKeys(a:pane, -1, base)
+    endfun
+
+    fun! RunBinary(buff, sess, ...)
+        if a:0 == 0
+            echo "Run what? (Supply a binary name)"
+            return
+        endif
+
+        call TmuxSendKeys(a:buff, a:sess, './' . join(a:000, ' '))
+    endfun
+
+    " I use SCons for building and testing
+    command! -nargs=* SCons call RunBuild('scons', 0, 0, '-j 6', <f-args>)
+    command! -nargs=* SConsTest call RunBuild('scons', 0, 1, 'test -j 6', <f-args>)
+
+    " Remaps
+    nnoremap <leader>sco :SCons<cr>
+    nnoremap <leader>scot :SConsTest<cr>
+
+    " Currently, while developing a command line app, this little command
+    " right here lets me type in Vim and see everything happen in tmux
+    command! -nargs=* Run call RunBinary(1, -1, <f-args>)
+
+    " This is a fallback command for cases where the autocmd hasn't activated.
+    " I'm weird, okay?
+    command! TmuxCpp let g:tmux_multiterm_session = 'cpp.0'
+<
+
+I haven't fully worked tmux into my workflow, but even at this point, the
+plugin helps a lot compared to rolling my own setup.
+
+So what can it be used for? It can be used for anything where you need to
+compile something, or run tests, or anything else outside vim. If you're
+working on CLI program, you can control the entire thing from Vim.
+It also acts like an alternative to `:!termCommand`, which can be useful
+depending on your specific use.
+
+Of course, you could just spin up a `:tab term`, but if you're like me and
+have an extra screen attached, that's not the best use of screen real-estate.
+The beauty of using tmux in an external terminal is that you can use screens
+better, isntead of having everything crammed into a mess of wintabs and
+proper tabs.
+
 ==============================================================================
 2. Plugin options                                       *tmux-multiterm-options*
 
@@ -92,7 +170,7 @@ the environment variable `$TMUX` set.
 3. Functions                                          *tmux-multiterm-functions*
 
 This plugin doesn't export too many options, commands, and keybinds, but it
-does expose several functions. 
+does expose several functions.
 
 ------------------------------------------------------------------------------
                                                        *tmux-multiterm-funcargs*
@@ -118,7 +196,7 @@ This function is also used by TmuxSendToRunner.
 for argument descriptions) sends a tmux command to a specific session and/or
 pane. It automatically deals with sockets, but assumes all tmux sessions are
 hosted on the same socket. (This may change in the future when I get more
-comfortable with vimscript). 
+comfortable with vimscript).
 
 This accepts any command, unlike |TmuxSendKeys()|, which only uses a specific
 command. In fact, `TmuxSendKeys()` uses this funciton under the hood.
@@ -147,15 +225,15 @@ Out of the box, there's a couple commands set up for your convenience.
 
 ------------------------------------------------------------------------------
                                                                        *SetTerm*
-`:SetTerm mySession.1234` is equivalent to 
+`:SetTerm mySession.1234` is equivalent to
 `let g:tmux_multiterm_session = "mySession.1234` (|g:tmux_multiterm_session|).
 
 This command is mainly useful if you vary the names, or decided to change it
-at runtime. This command doesn't directly have any use if you set 
+at runtime. This command doesn't directly have any use if you set
 |g:tmux_multiterm_session| in your .vimrc.
 ------------------------------------------------------------------------------
                                                                      *SetBuffer*
-`:SetBuffer 1234` is a convenience command. It's equivalent to 
+`:SetBuffer 1234` is a convenience command. It's equivalent to
 `let g:tmux_multiterm_session .= '.1234'`.
 
 ------------------------------------------------------------------------------
